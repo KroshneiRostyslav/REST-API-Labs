@@ -1,60 +1,73 @@
 from uuid import UUID
+from sqlalchemy.orm import Session
+from sqlalchemy import select
 
-from app.models.books import books
+from app.models.book import Book
 from app.schemas.book import BookStatus, BookSort
 
 class BookRepository:
-    async def get_all_books(
+    def get_all_books(
         self,
+        db: Session,
         author: str | None = None,
         status: BookStatus | None = None,
-        sort: BookSort | None = None
+        sort: BookSort | None = None,
+        limit: int | None = None,
+        offset: int | None = None
     ):
-        result = books
+        query = select(Book)
 
         if author:
-            result = [
-                book
-                for book in result
-                if book["author"] == author
-            ]
-        
-        if status: 
-            result = [
-                book
-                for book in result
-                if book["status"] == status.value
-            ]
+            query = query.where(Book.author == author)
+
+        if status:
+            query = query.where(Book.status == status.value)
 
         if sort == BookSort.by_name:
-            result = sorted(
-                result,
-                key=lambda book: book["name"]
-            )
+            query = query.order_by(Book.name)
 
         if sort == BookSort.by_year:
-            result = sorted(
-                result,
-                key=lambda book: book["year"]
-            )
+            query = query.order_by(Book.year)
 
-        return result
+        query = query.offset(offset).limit(limit)
 
-    async def get_book_by_id(self, book_id: UUID):
-        for book in books:
-            if book["id"] == str(book_id):
-                return book
-        
-        return None
-    
-    async def add_book(self, book_dict: dict):
-        books.append(book_dict)
-        return book_dict
-    
-    async def delete_book_by_id(self, book_id: UUID):
-        for index, book in enumerate(books):
-            if book["id"] == str(book_id):
-                books.pop(index)
-                return True
+        result = db.execute(query)
 
-        return False
+        return result.scalars().all()
+
+    def get_book_by_id(
+        self,
+        db: Session,
+        book_id: UUID
+    ):
+        result = db.execute(
+            select(Book).where(Book.id == book_id)
+        )
+
+        return result.scalar_one_or_none()
+
+    def add_book(
+        self,
+        db: Session,
+        book: Book
+    ):
+        db.add(book)
+        db.commit()
+        db.refresh(book)
+
+        return book
+
+    def delete_book_by_id(
+        self,
+        db: Session,
+        book_id: UUID
+    ):
+        book = self.get_book_by_id(db, book_id)
+
+        if not book:
+            return False
+
+        db.delete(book)
+        db.commit()
+
+        return True

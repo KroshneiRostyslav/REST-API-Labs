@@ -105,3 +105,43 @@ def test_sort_by_year(client):
     years = [b["year"] for b in response.json()]
     assert years == sorted(years)
 
+def test_pagination(client):
+    response = client.get("/books/?limit=2&offset=0")
+
+    assert response.status_code == 200
+    assert len(response.json()) <= 2
+
+def test_pagination_offset(client):
+    first = client.get("/books/?limit=1&offset=0").json()
+    second = client.get("/books/?limit=1&offset=1").json()
+
+    if first and second:
+        assert first[0]["id"] != second[0]["id"]
+
+def test_delete_is_idempotent(client):
+    create = client.post("/books/", json={
+        "name": "Delete",
+        "author": "John",
+        "description": "book",
+        "year": 2020,
+        "status": "available"
+    }).json()
+
+    book_id = create["id"]
+
+    response1 = client.delete(f"/books/{book_id}")
+    response2 = client.delete(f"/books/{book_id}")
+
+    assert response1.status_code == 204
+    assert response2.status_code == 204
+
+def test_create_book_invalid_year(client):
+    response = client.post("/books/", json={
+        "name": "Book",
+        "author": "John",
+        "description": "book",
+        "year": "invalid",
+        "status": "available"
+    })
+
+    assert response.status_code == 422
