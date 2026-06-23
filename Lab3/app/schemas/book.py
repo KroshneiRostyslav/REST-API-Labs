@@ -22,9 +22,11 @@ class BookCreate(BookBase):
     pass
 
 class BookResponse(BookBase):
-    id: UUID
+    id: str
     created_at: datetime
 
 class BookPage(BaseModel):
     items: list[BookResponse]
-    next_cursor: datetime | None
+    total: int
+    limit: int
+    offset: int

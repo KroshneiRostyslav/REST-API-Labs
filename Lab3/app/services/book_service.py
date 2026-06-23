@@ -1,40 +1,51 @@
-from uuid import UUID
-from sqlalchemy.orm import Session
+from uuid import uuid4
 from datetime import datetime
 
-from app.schemas.book import BookCreate
 from app.repository.book_repository import BookRepository
-from app.models.book import Book
 
 class BookService:
+
     def __init__(self, repository: BookRepository):
         self.repository = repository
 
-    def get_all_books(
+    async def get_all_books(
         self,
-        db: Session,
-        limit: int | None = None,
-        cursor: datetime | None = None
+        limit: int,
+        offset: int
     ):
-        books = self.repository.get_all_books(db, limit, cursor)
-
-        next_cursor = None
-
-        if len(books) == limit:
-            next_cursor = books[-1].created_at
+        books, total = await self.repository.get_all_books(
+            limit,
+            offset
+        )
 
         return {
             "items": books,
-            "next_cursor": next_cursor
+            "total": total,
+            "limit": limit,
+            "offset": offset
         }
 
-    def add_book(self, db: Session, book_data: BookCreate):
-        book = Book(**book_data.model_dump())
+    async def add_book(self, book_data):
+        book = {
+            "id": str(uuid4()),
+            **book_data.model_dump(),
+            "created_at": datetime.utcnow()
+        }
 
-        return self.repository.add_book(db, book)
+        return await self.repository.add_book(book)
 
-    def get_book_by_id(self, db: Session, book_id: UUID):
-        return self.repository.get_book_by_id(db, book_id)
-    
-    def delete_book_by_id(self, db: Session, book_id: UUID):
-        return self.repository.delete_book_by_id(db, book_id)
+    async def get_book_by_id(
+        self,
+        book_id: str
+    ):
+        return await self.repository.get_book_by_id(
+            book_id
+        )
+
+    async def delete_book_by_id(
+        self,
+        book_id: str
+    ):
+        return await self.repository.delete_book_by_id(
+            book_id
+        )

@@ -1,61 +1,54 @@
-from uuid import UUID
-from sqlalchemy.orm import Session
-from sqlalchemy import select
-from datetime import datetime
-
-from app.models.book import Book
-
 class BookRepository:
-    def get_all_books(
+
+    def __init__(self, db):
+        self.collection = db.books
+
+    async def get_all_books(
         self,
-        db: Session,
-        limit: int | None = None,
-        cursor: datetime | None = None
+        limit: int,
+        offset: int
     ):
-        query = select(Book)
-
-        if cursor:
-            query = query.where(Book.created_at > cursor)
-
-        query = query.order_by(Book.created_at).limit(limit)
-
-        result = db.execute(query)
-
-        return result.scalars().all()
-
-    def get_book_by_id(
-        self,
-        db: Session,
-        book_id: UUID
-    ):
-        result = db.execute(
-            select(Book).where(Book.id == book_id)
+        cursor = (
+            self.collection
+                .find()
+                .sort("created_at", 1)
+                .skip(offset)
+                .limit(limit)
         )
 
-        return result.scalar_one_or_none()
+        books = await cursor.to_list(length=limit)
 
-    def add_book(
-        self,
-        db: Session,
-        book: Book
-    ):
-        db.add(book)
-        db.commit()
-        db.refresh(book)
+        for book in books:
+            book.pop("_id", None)
+
+        total = await self.collection.count_documents({})
+
+        return books, total
+
+    async def get_book_by_id(self, book_id: str):
+        book = await self.collection.find_one(
+            {"id": book_id}
+        )
+
+        if book:
+            book.pop("_id", None)
 
         return book
 
-    def delete_book_by_id(
+    async def add_book(
         self,
-        db: Session,
-        book_id: UUID
+        data: dict
     ):
-        book = self.get_book_by_id(db, book_id)
+        await self.collection.insert_one(data)
 
-        if not book:
-            return False
+        return data
 
-        db.delete(book)
-        db.commit()
+    async def delete_book_by_id(
+        self,
+        book_id: str
+    ):
+        result = await self.collection.delete_one(
+            {"id": book_id}
+        )
 
-        return True
+        return result.deleted_count > 0
