@@ -1,7 +1,8 @@
 from pydantic import BaseModel
 from enum import Enum
 from uuid import UUID
-
+from datetime import datetime
+    
 class BookStatus(str, Enum):
     available = "available"
     borrowed = "borrowed"
@@ -22,3 +23,8 @@ class BookCreate(BookBase):
 
 class BookResponse(BookBase):
     id: UUID
+    created_at: datetime
+
+class BookPage(BaseModel):
+    items: list[BookResponse]
+    next_cursor: datetime | None

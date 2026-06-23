@@ -1,35 +1,23 @@
 from uuid import UUID
 from sqlalchemy.orm import Session
 from sqlalchemy import select
+from datetime import datetime
 
 from app.models.book import Book
-from app.schemas.book import BookStatus, BookSort
 
 class BookRepository:
     def get_all_books(
         self,
         db: Session,
-        author: str | None = None,
-        status: BookStatus | None = None,
-        sort: BookSort | None = None,
         limit: int | None = None,
-        offset: int | None = None
+        cursor: datetime | None = None
     ):
         query = select(Book)
 
-        if author:
-            query = query.where(Book.author == author)
+        if cursor:
+            query = query.where(Book.created_at > cursor)
 
-        if status:
-            query = query.where(Book.status == status.value)
-
-        if sort == BookSort.by_name:
-            query = query.order_by(Book.name)
-
-        if sort == BookSort.by_year:
-            query = query.order_by(Book.year)
-
-        query = query.offset(offset).limit(limit)
+        query = query.order_by(Book.created_at).limit(limit)
 
         result = db.execute(query)
 

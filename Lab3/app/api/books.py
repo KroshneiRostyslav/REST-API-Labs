@@ -1,9 +1,10 @@
 from fastapi import APIRouter, HTTPException, Depends, Query
 from uuid import UUID
 from sqlalchemy.orm import Session
+from datetime import datetime
 
 from app.services.book_service import BookService
-from app.schemas.book import BookCreate, BookStatus, BookResponse, BookSort
+from app.schemas.book import BookCreate, BookResponse, BookPage
 from app.repository.book_repository import BookRepository
 from app.database import get_db
 
@@ -13,17 +14,14 @@ service = BookService(repository)
 
 @book_router.get(
     "/",
-    response_model=list[BookResponse]
+    response_model=BookPage
 )
 async def get_all_books(
     db: Session = Depends(get_db),
-    author: str | None = None,
-    status: BookStatus | None = None,
-    sort: BookSort | None = None,
     limit: int = Query(default=10, ge=1, le=100),
-    offset: int = Query(default=0, ge=0)
+    cursor: datetime | None = None
 ):
-    return service.get_all_books(db, author, status, sort, limit, offset)
+    return service.get_all_books(db, limit, cursor)
 
 @book_router.get(
     "/{book_id}",

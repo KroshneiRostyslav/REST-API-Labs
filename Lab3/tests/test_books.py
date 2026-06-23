@@ -7,6 +7,7 @@ from app.main import app
 def client():
     return TestClient(app)
 
+
 def test_create_book(client):
     response = client.post("/books/", json={
         "name": "Clean Code",
@@ -17,15 +18,25 @@ def test_create_book(client):
     })
 
     assert response.status_code == 201
+
     data = response.json()
+
     assert data["name"] == "Clean Code"
     assert "id" in data
+    assert "created_at" in data
+
 
 def test_get_books(client):
     response = client.get("/books/")
 
     assert response.status_code == 200
-    assert isinstance(response.json(), list)
+
+    data = response.json()
+
+    assert "items" in data
+    assert "next_cursor" in data
+    assert isinstance(data["items"], list)
+
 
 def test_get_book_by_id(client):
     create = client.post("/books/", json={
@@ -36,17 +47,19 @@ def test_get_book_by_id(client):
         "status": "available"
     }).json()
 
-    book_id = create["id"]
-
-    response = client.get(f"/books/{book_id}")
+    response = client.get(f"/books/{create['id']}")
 
     assert response.status_code == 200
-    assert response.json()["id"] == book_id
+    assert response.json()["id"] == create["id"]
+
 
 def test_get_book_not_found(client):
-    response = client.get("/books/00000000-0000-0000-0000-000000000000")
+    response = client.get(
+        "/books/00000000-0000-0000-0000-000000000000"
+    )
 
     assert response.status_code == 404
+
 
 def test_delete_book(client):
     create = client.post("/books/", json={
@@ -57,66 +70,10 @@ def test_delete_book(client):
         "status": "available"
     }).json()
 
-    book_id = create["id"]
+    response = client.delete(f"/books/{create['id']}")
 
-    response = client.delete(f"/books/{book_id}")
+    assert response.status_code == 204
 
-    assert response.status_code == 204  
-
-def test_filter_by_author(client):
-    client.post("/books/", json={
-        "name": "A",
-        "author": "John",
-        "description": "book",
-        "year": 2020,
-        "status": "available"
-    })
-
-    response = client.get("/books/?author=John")
-
-    data = response.json()
-    assert all(b["author"] == "John" for b in data)
-
-def test_filter_by_status(client):
-    response = client.get("/books/?status=available")
-
-    data = response.json()
-    assert all(b["status"] == "available" for b in data)
-
-def test_sort_by_year(client):
-    client.post("/books/", json={
-        "name": "A",
-        "author": "John",
-        "description": "book",
-        "year": 2005,
-        "status": "available"
-    })
-
-    client.post("/books/", json={
-        "name": "B",
-        "author": "John",
-        "description": "book",
-        "year": 2010,
-        "status": "available"
-    })
-
-    response = client.get("/books/?sort=year")
-
-    years = [b["year"] for b in response.json()]
-    assert years == sorted(years)
-
-def test_pagination(client):
-    response = client.get("/books/?limit=2&offset=0")
-
-    assert response.status_code == 200
-    assert len(response.json()) <= 2
-
-def test_pagination_offset(client):
-    first = client.get("/books/?limit=1&offset=0").json()
-    second = client.get("/books/?limit=1&offset=1").json()
-
-    if first and second:
-        assert first[0]["id"] != second[0]["id"]
 
 def test_delete_is_idempotent(client):
     create = client.post("/books/", json={
@@ -135,6 +92,7 @@ def test_delete_is_idempotent(client):
     assert response1.status_code == 204
     assert response2.status_code == 204
 
+
 def test_create_book_invalid_year(client):
     response = client.post("/books/", json={
         "name": "Book",
@@ -145,3 +103,31 @@ def test_create_book_invalid_year(client):
     })
 
     assert response.status_code == 422
+
+
+def test_cursor_pagination(client):
+    response = client.get("/books/?limit=2")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert len(data["items"]) <= 2
+    assert "next_cursor" in data
+
+
+def test_cursor_next_page(client):
+    first_page = client.get("/books/?limit=1").json()
+
+    cursor = first_page["next_cursor"]
+
+    if cursor:
+        second_page = client.get(
+            f"/books/?limit=1&cursor={cursor}"
+        ).json()
+
+        if second_page["items"]:
+            assert (
+                first_page["items"][0]["id"]
+                != second_page["items"][0]["id"]
+            )

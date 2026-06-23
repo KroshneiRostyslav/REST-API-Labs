@@ -1,7 +1,8 @@
 from uuid import UUID
 from sqlalchemy.orm import Session
+from datetime import datetime
 
-from app.schemas.book import BookCreate, BookStatus, BookSort
+from app.schemas.book import BookCreate
 from app.repository.book_repository import BookRepository
 from app.models.book import Book
 
@@ -12,13 +13,20 @@ class BookService:
     def get_all_books(
         self,
         db: Session,
-        author: str | None = None,
-        status: BookStatus | None = None,
-        sort: BookSort | None = None,
         limit: int | None = None,
-        offset: int | None = None
+        cursor: datetime | None = None
     ):
-        return self.repository.get_all_books(db, author, status, sort, limit, offset)
+        books = self.repository.get_all_books(db, limit, cursor)
+
+        next_cursor = None
+
+        if len(books) == limit:
+            next_cursor = books[-1].created_at
+
+        return {
+            "items": books,
+            "next_cursor": next_cursor
+        }
 
     def add_book(self, db: Session, book_data: BookCreate):
         book = Book(**book_data.model_dump())
