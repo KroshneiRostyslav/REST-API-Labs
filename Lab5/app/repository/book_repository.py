@@ -1,32 +1,34 @@
+from app.database import db
+
 class BookRepository:
 
-    def __init__(self, db):
+    def __init__(self):
         self.collection = db.books
 
-    async def get_all_books(
+    def get_all_books(
         self,
-        limit: int,
-        offset: int
+        limit,
+        offset
     ):
-        cursor = (
+        books = list(
             self.collection
-                .find()
-                .sort("created_at", 1)
-                .skip(offset)
-                .limit(limit)
+            .find({})
+            .skip(offset)
+            .limit(limit)
         )
-
-        books = await cursor.to_list(length=limit)
 
         for book in books:
             book.pop("_id", None)
 
-        total = await self.collection.count_documents({})
+        total = self.collection.count_documents({})
 
         return books, total
 
-    async def get_book_by_id(self, book_id: str):
-        book = await self.collection.find_one(
+    def get_book_by_id(
+        self,
+        book_id
+    ):
+        book = self.collection.find_one(
             {"id": book_id}
         )
 
@@ -35,19 +37,19 @@ class BookRepository:
 
         return book
 
-    async def add_book(
+    def add_book(
         self,
-        data: dict
+        data
     ):
-        await self.collection.insert_one(data)
+        self.collection.insert_one(data)
 
         return data
 
-    async def delete_book_by_id(
+    def delete_book_by_id(
         self,
-        book_id: str
+        book_id
     ):
-        result = await self.collection.delete_one(
+        result = self.collection.delete_one(
             {"id": book_id}
         )
 

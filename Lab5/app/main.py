@@ -1,10 +1,39 @@
-from fastapi import FastAPI
-from app.api.books import book_router
+from flask import Flask
+from flask_restful import Api
+from flasgger import Swagger
 
-app = FastAPI()
+from app.api.books import (
+    BookListResource,
+    BookResource
+)
 
-app.include_router(book_router)
+app = Flask(__name__)
 
-@app.get("/")
+swagger = Swagger(app)
+
+api = Api(app)
+
+api.add_resource(
+    BookListResource,
+    "/books"
+)
+
+api.add_resource(
+    BookResource,
+    "/books/<string:book_id>"
+)
+
+
+@app.route("/")
 def root():
-    return {"Для перегляду всіх книг скористатись /books префіксом"}
+    return {
+        "message": "Library API"
+    }
+
+
+if __name__ == "__main__":
+    app.run(
+        host="0.0.0.0",
+        port=5000,
+        debug=True
+    )

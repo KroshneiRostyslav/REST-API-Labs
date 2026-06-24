@@ -1,21 +1,26 @@
 from uuid import uuid4
 from datetime import datetime
 
-from app.repository.book_repository import BookRepository
+from app.repository.book_repository import (
+    BookRepository
+)
+
 
 class BookService:
 
-    def __init__(self, repository: BookRepository):
-        self.repository = repository
+    def __init__(self):
+        self.repository = BookRepository()
 
-    async def get_all_books(
+    def get_all_books(
         self,
-        limit: int,
-        offset: int
+        limit,
+        offset
     ):
-        books, total = await self.repository.get_all_books(
-            limit,
-            offset
+        books, total = (
+            self.repository.get_all_books(
+                limit,
+                offset
+            )
         )
 
         return {
@@ -25,27 +30,31 @@ class BookService:
             "offset": offset
         }
 
-    async def add_book(self, book_data):
+    def add_book(
+        self,
+        data
+    ):
         book = {
             "id": str(uuid4()),
-            **book_data.model_dump(),
-            "created_at": datetime.utcnow()
+            **data,
+            "created_at":
+                datetime.utcnow().isoformat()
         }
 
-        return await self.repository.add_book(book)
+        return self.repository.add_book(book)
 
-    async def get_book_by_id(
+    def get_book_by_id(
         self,
-        book_id: str
+        book_id
     ):
-        return await self.repository.get_book_by_id(
+        return self.repository.get_book_by_id(
             book_id
         )
 
-    async def delete_book_by_id(
+    def delete_book_by_id(
         self,
-        book_id: str
+        book_id
     ):
-        return await self.repository.delete_book_by_id(
+        return self.repository.delete_book_by_id(
             book_id
         )
