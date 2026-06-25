@@ -1,5 +1,6 @@
 from app.database import db
 
+
 class BookRepository:
 
     def __init__(self):
@@ -42,6 +43,8 @@ class BookRepository:
         data
     ):
         self.collection.insert_one(data)
+
+        data.pop("_id", None)
 
         return data
 

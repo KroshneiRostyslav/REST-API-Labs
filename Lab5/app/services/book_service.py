@@ -1,5 +1,5 @@
 from uuid import uuid4
-from datetime import datetime
+from datetime import datetime, UTC
 
 from app.repository.book_repository import (
     BookRepository
@@ -38,7 +38,7 @@ class BookService:
             "id": str(uuid4()),
             **data,
             "created_at":
-                datetime.utcnow().isoformat()
+                datetime.now(UTC).isoformat()
         }
 
         return self.repository.add_book(book)

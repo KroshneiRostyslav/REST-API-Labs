@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 from enum import Enum
-from uuid import UUID
 from datetime import datetime
     
 class BookStatus(str, Enum):
