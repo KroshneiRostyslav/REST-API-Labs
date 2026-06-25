@@ -1,142 +1,110 @@
-from flask import request
-from flask_restful import Resource
+from fastapi import (
+    APIRouter,
+    Depends,
+    Query,
+    HTTPException
+)
+from fastapi.security import (
+    OAuth2PasswordBearer
+)
 
-from app.dependencies import get_book_service
+from app.dependencies import (
+    get_book_service
+)
+from app.auth import verify_token
+
+from app.schemas.book import (
+    BookCreate,
+    BookResponse,
+    BookPage
+)
+
+router = APIRouter(
+    prefix="/books",
+    tags=["Books"]
+)
+
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/auth/token"
+)
 
 service = get_book_service()
 
 
-class BookListResource(Resource):
-
-  def get(self):
-    """
-    Get all books
-    ---
-    tags:
-      - Books
-
-    parameters:
-      - name: limit
-        in: query
-        type: integer
-
-      - name: offset
-        in: query
-        type: integer
-
-    responses:
-      200:
-        description: Books list
-    """
-
-    limit = int(
-        request.args.get("limit", 10)
+def get_current_user(
+    token: str = Depends(oauth2_scheme)
+):
+    return verify_token(
+        token,
+        "access"
     )
 
-    offset = int(
-        request.args.get("offset", 0)
-    )
 
-    result = service.get_all_books(
+@router.get(
+    "/",
+    response_model=BookPage
+)
+def get_books(
+    limit: int = Query(10, ge=1),
+    offset: int = Query(0, ge=0),
+    user=Depends(get_current_user)
+):
+    books = service.get_all_books(
         limit,
         offset
     )
 
-    return result, 200
-
-  def post(self):
-    """
-    Create book
-    ---
-    tags:
-      - Books
-
-    parameters:
-      - in: body
-        name: body
-        required: true
-        schema:
-          type: object
-          properties:
-            title:
-              type: string
-              example: Test name
-
-            author:
-              type: string
-              example: Super author
-
-            year:
-              type: integer
-              example: 2020
-
-          required:
-            - title
-            - author
-
-    responses:
-      201:
-        description: Book created
-    """
-
-    data = request.get_json()
-
-    result = service.add_book(data)
-
-    return result, 201
+    return {
+        "items": books,
+        "total": len(books),
+        "limit": limit,
+        "offset": offset
+    }
 
 
-class BookResource(Resource):
+@router.post(
+    "/",
+    response_model=BookResponse,
+    status_code=201
+)
+def create_book(
+    data: BookCreate,
+    user=Depends(get_current_user)
+):
+    return service.add_book(
+        data.model_dump()
+    )
 
-  def get(self, book_id):
-      """
-      Get book by id
-      ---
-      tags:
-        - Books
 
-      parameters:
-        - name: book_id
-          in: path
-          required: true
+@router.get(
+    "/{book_id}",
+    response_model=BookResponse
+)
+def get_book(
+    book_id: str,
+    user=Depends(get_current_user)
+):
+    book = service.get_book_by_id(
+        book_id
+    )
 
-      responses:
-        200:
-          description: Book
-        404:
-          description: Not found
-      """
+    if not book:
+        raise HTTPException(
+            status_code=404,
+            detail="Book not found"
+        )
 
-      book = service.get_book_by_id(
-          book_id
-      )
+    return book
 
-      if not book:
-          return {
-              "message": "Book not found"
-          }, 404
 
-      return book, 200
-
-  def delete(self, book_id):
-      """
-      Delete book
-      ---
-      tags:
-        - Books
-
-      parameters:
-        - name: book_id
-          in: path
-          required: true
-
-      responses:
-        204:
-          description: Deleted
-      """
-
-      service.delete_book_by_id(
-          book_id
-      )
-
-      return "", 204
+@router.delete(
+    "/{book_id}",
+    status_code=204
+)
+def delete_book(
+    book_id: str,
+    user=Depends(get_current_user)
+):
+    service.delete_book_by_id(
+        book_id
+    )
